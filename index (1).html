@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculadora</title>
+<style>
+  :root {
+    --fundo: #121212;
+    --corpo: #1e1e1e;
+    --visor: #0a0a0a;
+    --tecla: #3a3a3a;
+    --tecla-hover: #4a4a4a;
+    --operador: #595959;
+    --operador-hover: #6a6a6a;
+    --texto: #f0f0f0;
+    --laranja: #e8772e;
+    --laranja-hover: #f08a47;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .calculadora {
+    width: 100%;
+    max-width: 340px;
+    background: var(--corpo);
+    border-radius: 20px;
+    padding: 16px;
+  }
+  .visor {
+    background: var(--visor);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    overflow: hidden;
+  }
+  .conta {
+    font-size: 1.1rem;
+    color: #8a8a8a;
+    min-height: 1.4rem;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .resultado {
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1.1;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .teclas {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--texto);
+    background: var(--tecla);
+    border: none;
+    border-radius: 12px;
+    height: 64px;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.08s;
+  }
+  button:hover { background: var(--tecla-hover); }
+  button:active { transform: scale(0.95); }
+  button:focus-visible { outline: 2px solid var(--texto); outline-offset: 2px; }
+  button.operador { background: var(--operador); }
+  button.operador:hover { background: var(--operador-hover); }
+  button.limpar { background: var(--laranja); color: #1a1a1a; }
+  button.limpar:hover { background: var(--laranja-hover); }
+  button.zero { grid-column: span 2; }
+  button.igual { grid-column: span 2; background: var(--operador); }
+</style>
+</head>
+<body>
+
+<main class="calculadora">
+  <div class="visor" aria-live="polite">
+    <div class="conta" id="conta"></div>
+    <div class="resultado" id="resultado">0</div>
+  </div>
+
+  <div class="teclas">
+    <button class="limpar" data-acao="limpar" aria-label="Limpar">C</button>
+    <button class="operador" data-acao="apagar" aria-label="Apagar último dígito">⌫</button>
+    <button class="operador" data-op="÷" aria-label="Dividir">÷</button>
+    <button class="operador" data-op="×" aria-label="Multiplicar">×</button>
+
+    <button data-num="7">7</button>
+    <button data-num="8">8</button>
+    <button data-num="9">9</button>
+    <button class="operador" data-op="−" aria-label="Subtrair">−</button>
+
+    <button data-num="4">4</button>
+    <button data-num="5">5</button>
+    <button data-num="6">6</button>
+    <button class="operador" data-op="+" aria-label="Somar">+</button>
+
+    <button data-num="1">1</button>
+    <button data-num="2">2</button>
+    <button data-num="3">3</button>
+    <button data-num="," aria-label="Vírgula">,</button>
+
+    <button class="zero" data-num="0">0</button>
+    <button class="igual" data-acao="igual" aria-label="Igual">=</button>
+  </div>
+</main>
+
+<script>
+  const elResultado = document.getElementById("resultado");
+  const elConta = document.getElementById("conta");
+
+  let atual = "0";        // número sendo digitado
+  let anterior = null;    // número guardado
+  let operador = null;    // operação escolhida
+  let acabouDeCalcular = false;
+
+  const paraNumero = (txt) => parseFloat(txt.replace(",", "."));
+
+  function formatar(n) {
+    if (!isFinite(n)) return "Erro";
+    // evita erros de ponto flutuante, ex.: 0,1 + 0,2
+    const arredondado = parseFloat(n.toPrecision(12));
+    return String(arredondado).replace(".", ",");
+  }
+
+  function atualizarVisor() {
+    elResultado.textContent = atual;
+    elConta.textContent = operador && anterior !== null ? anterior + " " + operador : "";
+    // reduz a fonte se o número for grande
+    const tam = atual.length > 11 ? 1.6 : atual.length > 8 ? 2.2 : 2.8;
+    elResultado.style.fontSize = tam + "rem";
+  }
+
+  function digitar(d) {
+    if (atual === "Erro" || acabouDeCalcular) {
+      atual = "0";
+      acabouDeCalcular = false;
+    }
+    if (d === ",") {
+      if (!atual.includes(",")) atual += ",";
+    } else if (atual === "0") {
+      atual = d;
+    } else if (atual.length < 15) {
+      atual += d;
+    }
+    atualizarVisor();
+  }
+
+  function calcular(a, b, op) {
+    switch (op) {
+      case "+": return a + b;
+      case "−": return a - b;
+      case "×": return a * b;
+      case "÷": return b === 0 ? NaN : a / b;
+    }
+  }
+
+  function escolherOperador(op) {
+    if (atual === "Erro") return;
+    if (operador && !acabouDeCalcular && anterior !== null) {
+      // encadeia: 2 + 3 + ... calcula o primeiro par antes
+      const r = calcular(paraNumero(anterior), paraNumero(atual), operador);
+      atual = formatar(r);
+      if (atual === "Erro") { limpar(true); atual = "Erro"; atualizarVisor(); return; }
+    }
+    anterior = atual;
+    operador = op;
+    acabouDeCalcular = true;
+    atualizarVisor();
+  }
+
+  function igual() {
+    if (!operador || anterior === null || atual === "Erro") return;
+    const r = calcular(paraNumero(anterior), paraNumero(atual), operador);
+    elConta.textContent = anterior + " " + operador + " " + atual + " =";
+    atual = formatar(r);
+    anterior = null;
+    operador = null;
+    acabouDeCalcular = true;
+    elResultado.textContent = atual;
+    const tam = atual.length > 11 ? 1.6 : atual.length > 8 ? 2.2 : 2.8;
+    elResultado.style.fontSize = tam + "rem";
+  }
+
+  function limpar(silencioso) {
+    atual = "0";
+    anterior = null;
+    operador = null;
+    acabouDeCalcular = false;
+    if (!silencioso) atualizarVisor();
+  }
+
+  function apagar() {
+    if (acabouDeCalcular || atual === "Erro") return;
+    atual = atual.length > 1 ? atual.slice(0, -1) : "0";
+    atualizarVisor();
+  }
+
+  document.querySelector(".teclas").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.num !== undefined) digitar(b.dataset.num);
+    else if (b.dataset.op) escolherOperador(b.dataset.op);
+    else if (b.dataset.acao === "igual") igual();
+    else if (b.dataset.acao === "limpar") limpar();
+    else if (b.dataset.acao === "apagar") apagar();
+  });
+
+  // Teclado do computador
+  document.addEventListener("keydown", (e) => {
+    if (/^[0-9]$/.test(e.key)) digitar(e.key);
+    else if (e.key === "," || e.key === ".") digitar(",");
+    else if (e.key === "+") escolherOperador("+");
+    else if (e.key === "-") escolherOperador("−");
+    else if (e.key === "*" || e.key === "x") escolherOperador("×");
+    else if (e.key === "/") { e.preventDefault(); escolherOperador("÷"); }
+    else if (e.key === "Enter" || e.key === "=") { e.preventDefault(); igual(); }
+    else if (e.key === "Backspace") apagar();
+    else if (e.key === "Escape" || e.key.toLowerCase() === "c") limpar();
+  });
+
+  atualizarVisor();
+</script>
+</body>
+</html>
